@@ -16,19 +16,22 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: 8.7
+      - name: Locate project
+        id: p
+        run: echo "dir=$(dirname "$(find . -name settings.gradle.kts | head -1)")" >> "$GITHUB_OUTPUT"
       - name: Build debug APK
+        working-directory: ${{ steps.p.outputs.dir }}
         run: gradle :app:assembleDebug --no-daemon
       - uses: actions/upload-artifact@v4
         with:
           name: MediaDownloader-apk
-          path: app/build/outputs/apk/debug/*.apk
-      # অ্যাপের ভিতরের অটো-আপডেটের জন্য: প্রতিবার আপলোডে নতুন Release + APK
+          path: ${{ steps.p.outputs.dir }}/app/build/outputs/apk/debug/*.apk
       - name: Publish release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           MSG: ${{ github.event.head_commit.message }}
         run: |
-          cp app/build/outputs/apk/debug/*.apk MediaDownloaderPro.apk
+          cp ${{ steps.p.outputs.dir }}/app/build/outputs/apk/debug/*.apk MediaDownloaderPro.apk
           gh release create "build-${{ github.run_number }}" MediaDownloaderPro.apk \
             --title "MediaDL Pro build ${{ github.run_number }}" \
             --notes "${MSG:-New build}" --latest
