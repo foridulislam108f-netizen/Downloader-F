@@ -18,7 +18,23 @@ jobs:
           gradle-version: 8.7
       - name: Locate project
         id: p
-        run: echo "dir=$(dirname "$(find . -name settings.gradle.kts | head -1)")" >> "$GITHUB_OUTPUT"
+        run: |
+          DIR=$(find . -name settings.gradle.kts -not -path './.git/*' | head -1 | xargs -r dirname)
+          if [ -z "$DIR" ]; then
+            ZIP=$(find . -name '*.zip' -not -path './.git/*' | head -1)
+            if [ -z "$ZIP" ]; then
+              echo "settings.gradle.kts বা zip কিছুই পাওয়া যায়নি। রিপোজিটরির ফাইল:"
+              find . -not -path './.git/*' | head -50
+              exit 1
+            fi
+            echo "zip পাওয়া গেছে: $ZIP"
+            mkdir -p _proj
+            unzip -q -o "$ZIP" -d _proj
+            DIR=$(find _proj -name settings.gradle.kts | head -1 | xargs -r dirname)
+          fi
+          if [ -z "$DIR" ]; then echo "Gradle প্রজেক্ট পাওয়া যায়নি"; exit 1; fi
+          echo "প্রজেক্ট ফোল্ডার: $DIR"
+          echo "dir=$DIR" >> "$GITHUB_OUTPUT"
       - name: Build debug APK
         working-directory: ${{ steps.p.outputs.dir }}
         run: gradle :app:assembleDebug --no-daemon
